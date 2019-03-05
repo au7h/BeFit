@@ -22,8 +22,12 @@ public class BeginnerActivity extends AppCompatActivity implements View.OnClickL
 
     private static final int numberOfDays = 30;
     private final String path = Environment.getExternalStorageDirectory().toString()+"/BeFitFiles";
+    private final String jSonFileNameBeginner = "/progressBeg.txt";
+    private final String jSonFileNameMediumAdvanced = "/progressMed.txt";
+    private final String jSonFileNameAdvanced = "/progressAdv.txt";
     private List<Training> trainingList;
     private Button buttons[] = new Button[numberOfDays];
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -42,9 +46,18 @@ public class BeginnerActivity extends AppCompatActivity implements View.OnClickL
     }
 
     private void checkJsonExist(){
-        File lastFile = new File(path + "/progressBeg.txt");
+        String jSonFileName;
+        int level = getIntent().getIntExtra("level", 0);
+        if(level == 1)
+            jSonFileName = jSonFileNameBeginner;
+        else if(level == 2)
+            jSonFileName = jSonFileNameMediumAdvanced;
+        else
+            jSonFileName = jSonFileNameAdvanced;
+
+        File lastFile = new File(path + jSonFileName);
         if(lastFile.exists()) {
-            String jSonData = FileOperations.readFromFile(path + "/progressBeg.txt", this);
+            String jSonData = FileOperations.readFromFile(path + jSonFileName, this);
             Type listType = new TypeToken<ArrayList<Training>>() {
             }.getType();
             trainingList = new Gson().fromJson(jSonData, listType);

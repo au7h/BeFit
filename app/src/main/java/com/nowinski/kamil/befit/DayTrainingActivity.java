@@ -25,10 +25,13 @@ import java.util.concurrent.ExecutionException;
 
 import pl.droidsonroids.gif.GifImageView;
 
+import com.facebook.FacebookSdk;
+import com.facebook.appevents.AppEventsLogger;
+
+
 public class DayTrainingActivity extends AppCompatActivity {
 
     private List<Training> trainingList;
-
     private TextView exerciseName, description, serie1, serie2, serie3, serie4;
     private Button explainBtn, backBtn, nextExerciseBtn, returnBtn;
     private Dialog dialogBox;
@@ -38,19 +41,98 @@ public class DayTrainingActivity extends AppCompatActivity {
     private int dayOneIt = 0, actualDay = 0;
 
     private final String path = Environment.getExternalStorageDirectory().toString()+"/BeFitFiles";
+    private int level;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_day_training);
+        runExerciseInitAsyncTask();
+        initGuiElements();
+        checkWhichDayIsSelected();
+    }
 
-        Integer level = getIntent().getIntExtra("level", 0);
-        try {
-            trainingList = new InitializeExerciseListTask().execute(level).get();
-        } catch (InterruptedException | ExecutionException ex){
-            ex.printStackTrace();
+    private void showActualExercise(int day){
+        actualDay = day;
+        dayOneIt = 0;
+
+        for(Exercise e : trainingList.get(day).getExercises()){
+            if(!e.isDone())
+                break;
+            dayOneIt++;
         }
 
+        //if all exercises are done then show day training done activity
+        if(dayOneIt==trainingList.get(day).getExercises().size())
+        {
+            showDayTrainingDoneActivity(day);
+            return;
+        }
+        exerciseName.setText(trainingList.get(day).getExercises().get(dayOneIt).getExerciseName());
+        exercisePreview.setImageResource(trainingList.get(day).getExercises().get(dayOneIt).getExerciseImageId());
+        serie1.setText("Seria pierwsza, " + trainingList.get(day).getExercises().get(dayOneIt).getSeriesReps().get(0).toString() + " potwórzeń");
+        serie2.setText("Seria druga, " + trainingList.get(day).getExercises().get(dayOneIt).getSeriesReps().get(1).toString() + " potwórzeń");
+        serie3.setText("Seria trzecia, " + trainingList.get(day).getExercises().get(dayOneIt).getSeriesReps().get(2).toString() + " potwórzeń");
+        serie4.setText("Seria czwarta, " + trainingList.get(day).getExercises().get(dayOneIt).getSeriesReps().get(3).toString() + " potwórzeń");
+        explainBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                createDialogBox(trainingList.get(actualDay).getExercises().get(dayOneIt).getExerciseAnimationId(), trainingList.get(actualDay).getExercises().get(dayOneIt).getExerciseDescription());
+            }
+        });
+
+    }
+
+    //show explain exercise dialog box with gif animation
+    public void createDialogBox(int resourceId, String descriptionTxt){
+        dialogBox = new Dialog(DayTrainingActivity.this);
+        dialogBox.setContentView(R.layout.dialog_box_layout);
+        dialogBox.setTitle("Animacja ćwiczenia");
+        returnBtn = dialogBox.findViewById(R.id.return_btn);
+        imgAnimation = dialogBox.findViewById(R.id.img_animation);
+        imgAnimation.setImageResource(resourceId);
+        description = dialogBox.findViewById(R.id.description);
+        description.setText(descriptionTxt);
+        returnBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialogBox.cancel();
+            }
+        });
+        dialogBox.show();
+    }
+
+    public void backToDays(View v){
+        Intent intent = new Intent(DayTrainingActivity.this, BeginnerActivity.class);
+        intent.putExtra("level", level);
+        startActivity(intent);
+        this.finish();
+    }
+
+    public void loadNextExercise(View v){
+        String jSonFileName;
+        if(level == 1)
+            jSonFileName = "progressBeg";
+        else if(level == 2)
+            jSonFileName = "progressMed";
+        else
+            jSonFileName = "progressAdv";
+        Log.d("day", Integer.toString(actualDay));
+        trainingList.get(actualDay).getExercises().get(dayOneIt).setDone(true);
+        //calculate training progress
+        double x = 100 * (dayOneIt+1) / trainingList.get(actualDay).getExercises().size();
+        trainingList.get(actualDay).setProgress(x);
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        String json = gson.toJson(trainingList);
+        FileOperations.createFile(path,jSonFileName, json);
+        done1.setChecked(false);
+        done2.setChecked(false);
+        done3.setChecked(false);
+        done4.setChecked(false);
+        showActualExercise(actualDay);
+    }
+
+    private void initGuiElements(){
         exerciseName = findViewById(R.id.exerciseName);
         description = findViewById(R.id.description);
         exercisePreview = findViewById(R.id.exercisePreview);
@@ -62,13 +144,13 @@ public class DayTrainingActivity extends AppCompatActivity {
         done1 = findViewById(R.id.done1);
         done1.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
-        public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-            if(isChecked)
-                done2.setEnabled(true);
-            else
-                done2.setEnabled(false);
-        }
-    });
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(isChecked)
+                    done2.setEnabled(true);
+                else
+                    done2.setEnabled(false);
+            }
+        });
         done2 = findViewById(R.id.done2);
         done2.setEnabled(false);
         done2.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -107,7 +189,18 @@ public class DayTrainingActivity extends AppCompatActivity {
         backBtn = findViewById(R.id.backBtn);
         nextExerciseBtn = findViewById(R.id.nextExerciseBtn);
         nextExerciseBtn.setEnabled(false);
+    }
 
+    private void runExerciseInitAsyncTask(){
+        level = getIntent().getIntExtra("level", 0);
+        try {
+            trainingList = new InitializeExerciseListTask().execute(level).get();
+        } catch (InterruptedException | ExecutionException ex){
+            ex.printStackTrace();
+        }
+    }
+
+    private void checkWhichDayIsSelected(){
         int buttonId = getIntent().getIntExtra("buttonId", 0);
         if(buttonId == 0 )
             Log.d("buttonId", "Error");
@@ -203,78 +296,15 @@ public class DayTrainingActivity extends AppCompatActivity {
                 showActualExercise(29);
                 break;
             default:
+                //nothing selected
         }
     }
 
-    private void showActualExercise(int day){
-        actualDay = day;
-        dayOneIt = 0;
-
-        for(Exercise e : trainingList.get(day).getExercises()){
-            if(!e.isDone())
-                break;
-            dayOneIt++;
-        }
-
-        if(dayOneIt==trainingList.get(day).getExercises().size())
-        {
-            //show day training done activity
-            Intent intent = new Intent(DayTrainingActivity.this, DayTrainingDoneActivity.class);
-            intent.putExtra("day","Dzień " + (day + 1) + " ukończony!");
-            startActivity(intent);
-            this.finish();
-            return;
-        }
-        exerciseName.setText(trainingList.get(day).getExercises().get(dayOneIt).getExerciseName());
-        exercisePreview.setImageResource(trainingList.get(day).getExercises().get(dayOneIt).getExerciseImageId());
-        serie1.setText("Seria pierwsza, " + trainingList.get(day).getExercises().get(dayOneIt).getSeriesReps().get(0).toString() + " potwórzeń");
-        serie2.setText("Seria druga, " + trainingList.get(day).getExercises().get(dayOneIt).getSeriesReps().get(1).toString() + " potwórzeń");
-        serie3.setText("Seria trzecia, " + trainingList.get(day).getExercises().get(dayOneIt).getSeriesReps().get(2).toString() + " potwórzeń");
-        serie4.setText("Seria czwarta, " + trainingList.get(day).getExercises().get(dayOneIt).getSeriesReps().get(3).toString() + " potwórzeń");
-        explainBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                createDialogBox(trainingList.get(actualDay).getExercises().get(dayOneIt).getExerciseAnimationId(), trainingList.get(actualDay).getExercises().get(dayOneIt).getExerciseDescription());
-            }
-        });
-
-    }
-
-    private void createDialogBox(int resourceId, String descriptionTxt){
-        dialogBox = new Dialog(DayTrainingActivity.this);
-        dialogBox.setContentView(R.layout.dialog_box_layout);
-        dialogBox.setTitle("Animacja ćwiczenia");
-        returnBtn = dialogBox.findViewById(R.id.return_btn);
-        imgAnimation = dialogBox.findViewById(R.id.img_animation);
-        imgAnimation.setImageResource(resourceId);
-        description = dialogBox.findViewById(R.id.description);
-        description.setText(descriptionTxt);
-        returnBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialogBox.cancel();
-            }
-        });
-        dialogBox.show();
-    }
-
-    public void backToDays(View v){
-        Intent intent = new Intent(DayTrainingActivity.this, BeginnerActivity.class);
+    private void showDayTrainingDoneActivity(int actualDay){
+        Intent intent = new Intent(DayTrainingActivity.this, DayTrainingDoneActivity.class);
+        intent.putExtra("day","Dzień " + (actualDay + 1) + " ukończony!");
+        intent.putExtra("level", level);
         startActivity(intent);
         this.finish();
-    }
-
-    public void loadNextExercise(View v){
-        trainingList.get(actualDay).getExercises().get(dayOneIt).setDone(true);
-        double x = 100 * (dayOneIt+1) / trainingList.get(actualDay).getExercises().size();
-        trainingList.get(actualDay).setProgress(x);
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        String json = gson.toJson(trainingList);
-        FileOperations.createFile(path,"progressBeg", json);
-        done1.setChecked(false);
-        done2.setChecked(false);
-        done3.setChecked(false);
-        done4.setChecked(false);
-        showActualExercise(actualDay);
     }
 }

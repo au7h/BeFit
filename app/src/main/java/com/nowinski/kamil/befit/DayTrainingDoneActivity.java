@@ -8,11 +8,15 @@ import android.widget.TextView;
 
 public class DayTrainingDoneActivity extends AppCompatActivity {
 
+    private int level;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_day_training_done);
-        Intent intent = getIntent(); // gets the previously created intent
+        // gets the previously created intent
+        Intent intent = getIntent();
+        level = getIntent().getIntExtra("level", 0);
         String day = intent.getStringExtra("day");
         TextView successInfo = findViewById(R.id.successInfo);
         successInfo.setText(day);
@@ -20,6 +24,7 @@ public class DayTrainingDoneActivity extends AppCompatActivity {
 
     public void ReturnToPlan(View v){
         Intent intent = new Intent(DayTrainingDoneActivity.this, BeginnerActivity.class);
+        intent.putExtra("level", level);
         startActivity(intent);
         this.finish();
     }

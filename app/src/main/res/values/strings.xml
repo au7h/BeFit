@@ -87,4 +87,8 @@
     <string name="pref_title_vibrate">Vibrate</string>
 
     <string name="title_activity_beginner">BeginnerActivity</string>
+
+    <string name="facebook_app_id">317361255649692</string>
+    <string name="fb_login_protocol_scheme">fb317361255649692</string>
+
 </resources>

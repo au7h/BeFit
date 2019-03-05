@@ -24,12 +24,24 @@ public class InitializeExerciseListTask extends AsyncTask<Integer, Integer, List
     private List<Training> trainingList;
     private List<Exercise> chestExercises, shouldersExercises, backExercises, bicepsTricepsExercises,
             stomacheExercises, legsExercises;
+    private int choice;
+    private final String jSonFileNameBeginner = "/progressBeg.txt";
+    private final String jSonFileNameMediumAdvanced = "/progressMed.txt";
+    private final String jSonFileNameAdvanced = "/progressAdv";
 
     @Override
     protected List<Training> doInBackground(Integer... params) {
+        String jSonFileName;
+        choice = params[0];
+        if(choice == 1)
+            jSonFileName = jSonFileNameBeginner;
+        else if(choice == 2)
+            jSonFileName = jSonFileNameMediumAdvanced;
+        else
+            jSonFileName = jSonFileNameAdvanced;
 
-        File lastFileBeginner = new File(path + "/progressBeg.txt");
-        if(!lastFileBeginner.exists()) {
+        File lastFile = new File(path + jSonFileName);
+        if(!lastFile.exists()) {
             chestExercises = new ArrayList<>();
             shouldersExercises = new ArrayList<>();
             backExercises = new ArrayList<>();
@@ -117,15 +129,14 @@ public class InitializeExerciseListTask extends AsyncTask<Integer, Integer, List
             legsExercises.add(new Exercise(6, "Wypychanie nóg na maszynie", "fff",
                     seriesRepsA, R.drawable.wypychanie_nog, R.drawable.wypychanie_nog_anim, false));
 
-            int choice = params[0];
             if(choice == 1)
                 initBeginnerList();
             else if(choice == 2)
                 initMediumAdvanceList();
-            else if(choice == 3)
+            else
                 initAdvanceList();
         } else {
-            String json = FileOperations.readFromFile(path + "/progressBeg.txt", null);
+            String json = FileOperations.readFromFile(path + jSonFileName, null);
             Type listType = new TypeToken<ArrayList<Training>>(){}.getType();
             trainingList = new Gson().fromJson(json, listType);
         }
